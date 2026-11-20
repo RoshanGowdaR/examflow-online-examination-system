@@ -1,0 +1,35 @@
+# ==============================================================================
+# Group 12 — ExamFlow: Online Examination Management System
+# Docker Compose Local & Staging Orchestration
+# ==============================================================================
+
+services:
+  examflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:-}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:-}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-}
+        VITE_AWS_GRADING_API_URL: ${VITE_AWS_GRADING_API_URL:-}
+    image: examflow:latest
+    container_name: examflow_app
+    restart: unless-stopped
+    ports:
+      - "8080:10000"
+    environment:
+      - NODE_ENV=production
+      - PORT=10000
+      - HOST=0.0.0.0
+      - FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SERVICE_ACCOUNT_JSON:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:10000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

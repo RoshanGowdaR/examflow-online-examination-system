@@ -1,0 +1,16 @@
+{
+  "name": "examflow-server",
+  "version": "1.0.0",
+  "description": "Production Node.js Backend Server for ExamFlow",
+  "main": "index.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs",
+    "check": "node --check index.mjs"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.0.0"
+  }
+}

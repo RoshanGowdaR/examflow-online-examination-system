@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function myUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isActive() {
+      return signedIn() && myUser().active == true;
+    }
+    function isAdmin() {
+      return isActive() && myUser().role == 'admin';
+    }
+    function isFaculty() {
+      return isActive() && (myUser().role == 'faculty' || myUser().role == 'admin');
+    }
+
+    match /users/{uid} {
+      // Users can read own profile; Admin can read all; Faculty can read student profiles
+      allow read: if signedIn() && (
+        request.auth.uid == uid ||
+        isAdmin() ||
+        (isFaculty() && resource.data.role == 'student')
+      );
+      // Client modifications restricted to Admin (server-side trusted creation used for accounts)
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /courses/{courseId} {
+      allow read: if isActive();
+      allow create, update, delete: if isFaculty();
+    }
+
+    match /exams/{examId} {
+      allow read: if isFaculty() || (isActive() && resource.data.status == 'published');
+      allow create, update, delete: if isFaculty();
+
+      match /questions/{questionId} {
+        allow read: if isFaculty() || (
+          isActive() &&
+          get(/databases/$(database)/documents/exams/$(examId)).data.status == 'published'
+        );
+        allow create, update, delete: if isFaculty();
+      }
+    }
+
+    // Correct answers are private. Only the trusted AWS Lambda Admin SDK may access these.
+    match /answerKeys/{examId} {
+      allow read, write: if false;
+    }
+
+    // Results are written only by the AWS Lambda Admin SDK.
+    match /results/{resultId} {
+      allow read: if isActive() && (
+        isFaculty() || resource.data.studentUid == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
+    // Audit events are reserved for trusted server-side logic.
+    match /auditEvents/{eventId} {
+      allow read, write: if false;
+    }
+  }
+}

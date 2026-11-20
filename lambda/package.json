@@ -1,0 +1,9 @@
+{
+  "name": "group12-exam-grading-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": { "check": "node --check index.mjs" },
+  "dependencies": { "firebase-admin": "^13.0.0" }
+}
