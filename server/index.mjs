@@ -29,6 +29,17 @@ app.use((req, res, next) => {
 // -------------------------------------------------------------
 // Firebase Admin SDK Initialization
 // -------------------------------------------------------------
+const FIREBASE_PROJECT_ID =
+  process.env.GOOGLE_CLOUD_PROJECT ||
+  process.env.GCLOUD_PROJECT ||
+  process.env.FIREBASE_PROJECT_ID ||
+  process.env.VITE_FIREBASE_PROJECT_ID ||
+  'online-examamination';
+
+// Ensure Google SDKs discover project ID
+process.env.GOOGLE_CLOUD_PROJECT = FIREBASE_PROJECT_ID;
+process.env.GCLOUD_PROJECT = FIREBASE_PROJECT_ID;
+
 let firestore;
 let adminApp;
 
@@ -41,6 +52,7 @@ function getDb() {
       const serviceAccount = JSON.parse(rawServiceAccount);
       adminApp = admin.apps.length ? admin.app() : admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || FIREBASE_PROJECT_ID,
       });
     } catch (parseErr) {
       console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON', parseErr);
@@ -49,10 +61,13 @@ function getDb() {
   } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS && fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
     adminApp = admin.apps.length ? admin.app() : admin.initializeApp({
       credential: admin.credential.applicationDefault(),
+      projectId: FIREBASE_PROJECT_ID,
     });
   } else {
-    // Attempt default initialization
-    adminApp = admin.apps.length ? admin.app() : admin.initializeApp();
+    // Standard initialization with explicit Project ID
+    adminApp = admin.apps.length ? admin.app() : admin.initializeApp({
+      projectId: FIREBASE_PROJECT_ID,
+    });
   }
 
   firestore = admin.firestore(adminApp);
@@ -725,18 +740,49 @@ JSON OUTPUT FORMAT:
 app.post(['/api/ai/generate-exam', '/ai/generate-exam'], handleAiGenerateExam);
 
 // -------------------------------------------------------------
+// Runtime Client Configuration Route
+// -------------------------------------------------------------
+app.get('/api/config', (req, res) => {
+  res.status(200).json({
+    apiKey: process.env.VITE_FIREBASE_API_KEY || '',
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'online-examamination.firebaseapp.com',
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'online-examamination',
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'online-examamination.firebasestorage.app',
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '219771742130',
+    appId: process.env.VITE_FIREBASE_APP_ID || '1:219771742130:web:5744e7caae7db4944026ab',
+  });
+});
+
+// -------------------------------------------------------------
 // Frontend Static File Serving & SPA Route Fallback
 // -------------------------------------------------------------
 const distPath = process.env.STATIC_DIR || path.join(__dirname, '../web/dist');
 if (fs.existsSync(distPath)) {
   console.log(`[ExamFlow Server] Serving static files from: ${distPath}`);
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, { index: false }));
 
   app.get('*', (req, res) => {
-    // Return index.html for client-side React Router navigation
+    // Return index.html with runtime config injected for client-side React Router navigation
     const indexPath = path.join(distPath, 'index.html');
     if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
+      let html = fs.readFileSync(indexPath, 'utf8');
+      const runtimeConfig = {
+        apiKey: process.env.VITE_FIREBASE_API_KEY || '',
+        authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'online-examamination.firebaseapp.com',
+        projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'online-examamination',
+        storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'online-examamination.firebasestorage.app',
+        messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '219771742130',
+        appId: process.env.VITE_FIREBASE_APP_ID || '1:219771742130:web:5744e7caae7db4944026ab',
+        geminiApiKey: process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '',
+      };
+      const injected = `<script>window.__EXAMFLOW_CONFIG__ = ${JSON.stringify(runtimeConfig)};</script>`;
+      if (html.includes('</head>')) {
+        html = html.replace('</head>', `${injected}</head>`);
+      } else {
+        html = injected + html;
+      }
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
     } else {
       res.status(404).send('index.html not found. Please build the frontend first.');
     }

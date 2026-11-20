@@ -26,8 +26,18 @@ services:
       - NODE_ENV=production
       - PORT=10000
       - HOST=0.0.0.0
+      - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY:-}
+      - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN:-online-examamination.firebaseapp.com}
+      - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID:-online-examamination}
+      - VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET:-online-examamination.firebasestorage.app}
+      - VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID:-219771742130}
+      - VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID:-1:219771742130:web:5744e7caae7db4944026ab}
+      - FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID:-online-examamination}
+      - GOOGLE_CLOUD_PROJECT=${VITE_FIREBASE_PROJECT_ID:-online-examamination}
+      - GCLOUD_PROJECT=${VITE_FIREBASE_PROJECT_ID:-online-examamination}
       - FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SERVICE_ACCOUNT_JSON:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY:-}
     healthcheck:
       test: ["CMD", "node", "-e", "import('http').then(h => h.get('http://localhost:10000/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)))"]
       interval: 30s

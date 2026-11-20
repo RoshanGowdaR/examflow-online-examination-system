@@ -2,27 +2,46 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-const requiredKeys = [
-  'VITE_FIREBASE_API_KEY',
-  'VITE_FIREBASE_AUTH_DOMAIN',
-  'VITE_FIREBASE_PROJECT_ID',
-  'VITE_FIREBASE_APP_ID',
-] as const;
+// Support both build-time Vite environment variables and runtime container injection
+const runtimeConfig = typeof window !== 'undefined' ? (window as any).__EXAMFLOW_CONFIG__ : null;
 
-const missingKeys = requiredKeys.filter((key) => !import.meta.env[key]);
-if (missingKeys.length > 0) {
-  throw new Error(
-    `Firebase is not configured. Copy .env.example to .env and fill: ${missingKeys.join(', ')}`,
-  );
-}
+const apiKey =
+  import.meta.env.VITE_FIREBASE_API_KEY ||
+  runtimeConfig?.apiKey ||
+  '';
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+const authDomain =
+  import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ||
+  runtimeConfig?.authDomain ||
+  'online-examamination.firebaseapp.com';
+
+const projectId =
+  import.meta.env.VITE_FIREBASE_PROJECT_ID ||
+  runtimeConfig?.projectId ||
+  'online-examamination';
+
+const storageBucket =
+  import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ||
+  runtimeConfig?.storageBucket ||
+  'online-examamination.firebasestorage.app';
+
+const messagingSenderId =
+  import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+  runtimeConfig?.messagingSenderId ||
+  '219771742130';
+
+const appId =
+  import.meta.env.VITE_FIREBASE_APP_ID ||
+  runtimeConfig?.appId ||
+  '1:219771742130:web:5744e7caae7db4944026ab';
+
+export const firebaseConfig = {
+  apiKey,
+  authDomain,
+  projectId,
+  storageBucket,
+  messagingSenderId,
+  appId,
 };
 
 const app = initializeApp(firebaseConfig);

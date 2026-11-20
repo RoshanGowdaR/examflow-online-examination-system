@@ -43,9 +43,13 @@ export async function generateExamQuestionsWithAi(
   }
 
   // Client-side Gemini fallback
-  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) || '';
+  const runtimeConfig = typeof window !== 'undefined' ? (window as any).__EXAMFLOW_CONFIG__ : null;
+  const apiKey =
+    (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) ||
+    runtimeConfig?.geminiApiKey ||
+    '';
   if (!apiKey || apiKey.trim().length === 0) {
-    throw new Error('Gemini API key is not configured in web/.env (VITE_GEMINI_API_KEY).');
+    throw new Error('Gemini API key is not configured. Please supply GEMINI_API_KEY.');
   }
 
   const safeCount = Math.min(Math.max(Number(payload.questionCount) || 5, 1), 30);
