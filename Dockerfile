@@ -12,7 +12,7 @@ WORKDIR /app/web
 
 # Install web dependencies
 COPY web/package.json web/package-lock.json* ./
-RUN npm ci || npm install
+RUN npm install
 
 # Build arguments for Vite frontend configuration
 ARG VITE_FIREBASE_API_KEY
@@ -22,6 +22,7 @@ ARG VITE_FIREBASE_STORAGE_BUCKET
 ARG VITE_FIREBASE_MESSAGING_SENDER_ID
 ARG VITE_FIREBASE_APP_ID
 ARG VITE_AWS_GRADING_API_URL
+ARG VITE_GEMINI_API_KEY
 
 ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY \
     VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN \
@@ -29,7 +30,8 @@ ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY \
     VITE_FIREBASE_STORAGE_BUCKET=$VITE_FIREBASE_STORAGE_BUCKET \
     VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID \
     VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID \
-    VITE_AWS_GRADING_API_URL=$VITE_AWS_GRADING_API_URL
+    VITE_AWS_GRADING_API_URL=$VITE_AWS_GRADING_API_URL \
+    VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
 
 # Copy source and build distribution bundle
 COPY web/ ./
@@ -50,9 +52,6 @@ RUN npm install --omit=dev --ignore-scripts
 FROM node:22-alpine AS runner
 WORKDIR /app
 
-# Install curl for container health check
-RUN apk add --no-cache curl
-
 ENV NODE_ENV=production \
     PORT=10000 \
     HOST=0.0.0.0
@@ -71,9 +70,9 @@ USER node
 # Expose container port (Render will map this to public traffic)
 EXPOSE 10000
 
-# Health check probe
+# Native Node.js Healthcheck (Zero external package dependencies)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -fs http://localhost:10000/healthz || exit 1
+  CMD node -e "import('http').then(h => h.get('http://localhost:10000/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)))" || exit 1
 
 # Start the full-stack server
 CMD ["node", "server/index.mjs"]

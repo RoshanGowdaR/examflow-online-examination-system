@@ -30,6 +30,7 @@ import { getAllCourses } from '../services/courses';
 import { getExams } from '../services/exams';
 import { getAllResults, getStudentResults } from '../services/results';
 import { isGradingApiConfigured, gradingApiUrl } from '../services/gradingApi';
+import type { Exam } from '../types';
 
 export function DashboardPage() {
   const { user, profile, signOutUser } = useAuth();
@@ -39,12 +40,13 @@ export function DashboardPage() {
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
 
-  // Live Stats
+  // Live Stats & Recent Data
   const [facultyCount, setFacultyCount] = useState<number | string>('—');
   const [studentCount, setStudentCount] = useState<number | string>('—');
   const [courseCount, setCourseCount] = useState<number | string>('—');
   const [examCount, setExamCount] = useState<number | string>('—');
   const [resultCount, setResultCount] = useState<number | string>('—');
+  const [recentExams, setRecentExams] = useState<Exam[]>([]);
 
   useEffect(() => {
     async function loadStats() {
@@ -59,6 +61,7 @@ export function DashboardPage() {
         setCourseCount(cList.length);
         setExamCount(eList.length);
         setResultCount(rList.length);
+        setRecentExams(eList.slice(0, 4));
 
         if (profile.role === 'admin') {
           const [fList, sList] = await Promise.all([
@@ -261,241 +264,329 @@ export function DashboardPage() {
           </div>
         </header>
 
-        {/* Tab: Dashboard Overview */}
+        {/* Tab: Dashboard Overview (Clean Minimalism & Bento Grid) */}
         {activeTab === 'dashboard' && (
-          <>
-            <section className="welcome-row">
+          <div className="bento-grid">
+            {/* Bento Tile 1: Hero Welcome Banner (span 12) */}
+            <div className="bento-card bento-hero">
               <div>
-                <p className="eyebrow">YOUR WORKSPACE</p>
-                <h2>
-                  {role === 'admin'
-                    ? 'Administrator Overview'
-                    : role === 'faculty'
-                    ? 'Faculty Workspace'
-                    : 'Student Assessment Dashboard'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <span className={`badge badge-role-${role}`} style={{ fontWeight: 700, letterSpacing: '0.5px' }}>
+                    {role.toUpperCase()} WORKSPACE
+                  </span>
+                  <span className="bento-chip bento-chip-emerald">
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                    Platform Active
+                  </span>
+                </div>
+                <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: '28px', fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.8px' }}>
+                  Welcome back, {profile.name}
                 </h2>
-                <p className="muted">
+                <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0, maxWidth: '580px', lineHeight: 1.5 }}>
                   {role === 'admin'
-                    ? 'Manage faculty, students, courses and supervise AI-assisted assessments.'
+                    ? 'Oversee university faculties, enroll students, and monitor AI-powered examinations.'
                     : role === 'faculty'
-                    ? 'Enroll students, manage assigned courses, and author examinations manually or with AI.'
-                    : 'Prepare for scheduled examinations, attempt assessments, and review results.'}
+                    ? 'Manage your course curriculum, enroll students, and generate assessments using Gemini AI.'
+                    : 'Track your enrolled curriculum, participate in timed online tests, and view instant grades.'}
                 </p>
               </div>
-              <div className="date-chip">
-                <CalendarDays size={17} /> Examination Portal
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
+                <div className="date-chip" style={{ background: 'rgba(255,255,255,0.08)', borderColor: '#334155', color: '#e2e8f0' }}>
+                  <CalendarDays size={15} /> Academic Session 2026
+                </div>
+                {(role === 'admin' || role === 'faculty') && (
+                  <button
+                    className="btn btn-primary"
+                    style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', border: 0, boxShadow: '0 4px 14px rgba(37,99,235,0.4)' }}
+                    onClick={() => setIsExamModalOpen(true)}
+                  >
+                    <Plus size={16} /> Create Examination
+                  </button>
+                )}
               </div>
-            </section>
+            </div>
 
-            {/* Stat Cards */}
-            <section className="stats-grid">
-              {role === 'admin' && (
-                <>
-                  <article className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('faculty')}>
-                    <div className="stat-top">
-                      <span>Faculty Members</span>
-                      <UserCheck size={19} color="#7c3aed" />
-                    </div>
-                    <strong className="stat-value">{facultyCount}</strong>
-                    <span className="stat-note">Admin-provisioned instructors</span>
-                  </article>
-                  <article className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('students')}>
-                    <div className="stat-top">
-                      <span>Enrolled Students</span>
-                      <GraduationCap size={19} color="#2563eb" />
-                    </div>
-                    <strong className="stat-value">{studentCount}</strong>
-                    <span className="stat-note">Across all departments</span>
-                  </article>
-                  <article className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('exams')}>
-                    <div className="stat-top">
-                      <span>Examinations</span>
-                      <ClipboardList size={19} color="#059669" />
-                    </div>
-                    <strong className="stat-value">{examCount}</strong>
-                    <span className="stat-note">AI & manual assessments</span>
-                  </article>
-                </>
-              )}
+            {/* Bento Tile 2: Primary Metric Card */}
+            <div
+              className="bento-card bento-stat"
+              onClick={() => setActiveTab(role === 'admin' ? 'faculty' : role === 'faculty' ? 'students' : 'exams')}
+            >
+              <div className="stat-top">
+                <span style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, fontSize: '10px' }}>
+                  {role === 'admin' ? 'Faculty Members' : role === 'faculty' ? 'Enrolled Students' : 'Available Exams'}
+                </span>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f5f3ff', color: '#7c3aed', display: 'grid', placeItems: 'center' }}>
+                  {role === 'admin' ? <UserCheck size={18} /> : role === 'faculty' ? <GraduationCap size={18} /> : <ClipboardList size={18} />}
+                </div>
+              </div>
+              <strong className="stat-value">{role === 'admin' ? facultyCount : role === 'faculty' ? studentCount : examCount}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+                <span className="stat-note">
+                  {role === 'admin' ? 'Active instructors' : role === 'faculty' ? 'Department cohorts' : 'Ready to attempt'}
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#7c3aed', display: 'flex', alignItems: 'center', gap: 2 }}>
+                  Manage &rarr;
+                </span>
+              </div>
+            </div>
 
-              {role === 'faculty' && (
-                <>
-                  <article className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('students')}>
-                    <div className="stat-top">
-                      <span>My Students</span>
-                      <GraduationCap size={19} color="#2563eb" />
-                    </div>
-                    <strong className="stat-value">{studentCount}</strong>
-                    <span className="stat-note">Enrolled in your department/courses</span>
-                  </article>
-                  <article className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('courses')}>
-                    <div className="stat-top">
-                      <span>Assigned Courses</span>
-                      <BookOpen size={19} color="#0891b2" />
-                    </div>
-                    <strong className="stat-value">{courseCount}</strong>
-                    <span className="stat-note">Curriculum subjects</span>
-                  </article>
-                  <article className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setIsExamModalOpen(true)}>
-                    <div className="stat-top">
-                      <span>Assessment Creator</span>
-                      <Sparkles size={19} color="#7c3aed" />
-                    </div>
-                    <strong className="stat-value" style={{ fontSize: '20px', color: '#7c3aed' }}>
-                      + Create Exam
-                    </strong>
-                    <span className="stat-note">Manual or AI question generator</span>
-                  </article>
-                </>
-              )}
+            {/* Bento Tile 3: Secondary Metric Card */}
+            <div
+              className="bento-card bento-stat"
+              onClick={() => setActiveTab(role === 'admin' ? 'students' : role === 'faculty' ? 'courses' : 'results')}
+            >
+              <div className="stat-top">
+                <span style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, fontSize: '10px' }}>
+                  {role === 'admin' ? 'Total Students' : role === 'faculty' ? 'Assigned Courses' : 'Completed Tests'}
+                </span>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: '#eff6ff', color: '#2563eb', display: 'grid', placeItems: 'center' }}>
+                  {role === 'admin' ? <GraduationCap size={18} /> : role === 'faculty' ? <BookOpen size={18} /> : <Award size={18} />}
+                </div>
+              </div>
+              <strong className="stat-value">{role === 'admin' ? studentCount : role === 'faculty' ? courseCount : resultCount}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+                <span className="stat-note">
+                  {role === 'admin' ? 'Verified accounts' : role === 'faculty' ? 'Curriculum subjects' : 'Automated grading'}
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#2563eb', display: 'flex', alignItems: 'center', gap: 2 }}>
+                  View &rarr;
+                </span>
+              </div>
+            </div>
 
-              {role === 'student' && (
-                <>
-                  <article className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('exams')}>
-                    <div className="stat-top">
-                      <span>Available Examinations</span>
-                      <ClipboardList size={19} color="#059669" />
-                    </div>
-                    <strong className="stat-value">{examCount}</strong>
-                    <span className="stat-note">Ready to attempt</span>
-                  </article>
-                  <article className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('results')}>
-                    <div className="stat-top">
-                      <span>Completed Assessments</span>
-                      <Award size={19} color="#2563eb" />
-                    </div>
-                    <strong className="stat-value">{resultCount}</strong>
-                    <span className="stat-note">Graded by AWS Lambda</span>
-                  </article>
-                  <article className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('exams')}>
-                    <div className="stat-top">
-                      <span>Examination Mode</span>
-                      <Clock3 size={19} color="#d97706" />
-                    </div>
-                    <strong className="stat-value" style={{ fontSize: '20px', color: '#059669' }}>
-                      Live Countdown
-                    </strong>
-                    <span className="stat-note">Automated timer & submission</span>
-                  </article>
-                </>
-              )}
-            </section>
+            {/* Bento Tile 4: Tertiary Metric Card */}
+            <div
+              className="bento-card bento-stat"
+              onClick={() => setActiveTab('exams')}
+            >
+              <div className="stat-top">
+                <span style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, fontSize: '10px' }}>
+                  {role === 'student' ? 'Examination Mode' : 'Examinations'}
+                </span>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: '#ecfdf5', color: '#059669', display: 'grid', placeItems: 'center' }}>
+                  {role === 'student' ? <Clock3 size={18} /> : <ClipboardList size={18} />}
+                </div>
+              </div>
+              <strong className="stat-value">{examCount}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+                <span className="stat-note">
+                  {role === 'student' ? 'Live countdown enabled' : 'Published & draft exams'}
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#059669', display: 'flex', alignItems: 'center', gap: 2 }}>
+                  Explore &rarr;
+                </span>
+              </div>
+            </div>
 
-            {/* Quick Actions & Architecture Panel */}
-            <section className="content-grid">
-              <article className="panel quick-panel">
-                <div className="panel-heading">
-                  <div>
-                    <p className="eyebrow">QUICK ACTIONS</p>
-                    <h3>Shortcuts</h3>
+            {/* Bento Tile 5: Featured Gemini AI Exam Studio (span 7) */}
+            <div className="bento-card bento-ai">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <span className="bento-chip bento-chip-purple">
+                      <Sparkles size={13} />
+                      GEMINI 1.5 FLASH ENGINE
+                    </span>
+                    <span style={{ fontSize: '11px', color: '#64748b' }}>Syllabus-Aligned</span>
                   </div>
-                  <span className="panel-icon"><Plus size={18} /></span>
-                </div>
-
-                <div className="action-list">
-                  {role === 'admin' && (
-                    <>
-                      <button className="action-row" onClick={() => setActiveTab('faculty')}>
-                        <span>+ Provision new Faculty Account</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                      <button className="action-row" onClick={() => setActiveTab('students')}>
-                        <span>+ Enroll Student Account</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                      <button className="action-row" onClick={() => setIsCourseModalOpen(true)}>
-                        <span>+ Add Course & Assign Faculty</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                      <button className="action-row" onClick={() => setIsExamModalOpen(true)}>
-                        <span>✨ Create Examination with AI / Manual</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                    </>
-                  )}
-
-                  {role === 'faculty' && (
-                    <>
-                      <button className="action-row" onClick={() => setActiveTab('students')}>
-                        <span>+ Enroll Student into your courses</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                      <button className="action-row" onClick={() => setIsExamModalOpen(true)}>
-                        <span>✨ Create Test Using AI</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                      <button className="action-row" onClick={() => setActiveTab('courses')}>
-                        <span>View My Assigned Courses</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                      <button className="action-row" onClick={() => setActiveTab('results')}>
-                        <span>Review Student Submissions</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                    </>
-                  )}
-
-                  {role === 'student' && (
-                    <>
-                      <button className="action-row" onClick={() => setActiveTab('exams')}>
-                        <span>Browse Available Examinations</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                      <button className="action-row" onClick={() => setActiveTab('results')}>
-                        <span>View Evaluated Assessment Scores</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                      <button className="action-row" onClick={() => setActiveTab('profile')}>
-                        <span>View My Enrolled Courses & Profile</span>
-                        <span className="action-arrow">&rarr;</span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              </article>
-
-              <article className="panel status-panel">
-                <div className="panel-heading">
-                  <div>
-                    <p className="eyebrow">HYBRID CLOUD PLATFORM</p>
-                    <h3>System Architecture</h3>
-                  </div>
-                  <ShieldCheck size={21} className="success-icon" />
-                </div>
-
-                <div className="progress-item">
-                  <div>
-                    <span>Firebase Auth & Firestore</span>
-                    <strong>Connected</strong>
-                  </div>
-                  <div className="progress-track"><span style={{ width: '100%' }} /></div>
-                </div>
-
-                <div className="progress-item">
-                  <div>
-                    <span>Role Hierarchy: Admin &rarr; Faculty &rarr; Student</span>
-                    <strong>Enforced</strong>
-                  </div>
-                  <div className="progress-track"><span style={{ width: '100%' }} /></div>
-                </div>
-
-                <div className="progress-item">
-                  <div>
-                    <span>Gemini AI Engine (AWS Lambda)</span>
-                    <strong>{isApiReady ? 'Backend Integrated' : 'Lambda Configured'}</strong>
-                  </div>
-                  <div className="progress-track"><span style={{ width: isApiReady ? '100%' : '80%' }} /></div>
-                </div>
-
-                <div className="notice-box">
-                  <strong>Private Server-Side Answer Keys</strong>
-                  <p>
-                    Student browsers never receive correct answers. AWS Lambda performs server-side grading and transactional scoring using Firebase Admin SDK.
+                  <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: '19px', fontWeight: 700, margin: '0 0 6px', color: '#1e1b4b' }}>
+                    AI-Powered Examination Creator
+                  </h3>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: 0, maxWidth: '480px', lineHeight: 1.5 }}>
+                    Generate calibrated objective questions with difficulty balancing, distractors, and automated server-side answer keys.
                   </p>
                 </div>
-              </article>
-            </section>
-          </>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', margin: '16px 0 20px' }}>
+                {['Cloud Architecture', 'Operating Systems', 'Database Systems', 'Algorithms'].map((tag) => (
+                  <span
+                    key={tag}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #e9d5ff',
+                      color: '#6b21a8',
+                      borderRadius: '8px',
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      fontWeight: 500,
+                    }}
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="btn btn-primary"
+                  style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', border: 0, boxShadow: '0 4px 14px rgba(124,58,237,0.3)' }}
+                  onClick={() => setIsExamModalOpen(true)}
+                >
+                  <Sparkles size={16} /> Open AI Exam Creator
+                </button>
+                <button className="btn btn-secondary" onClick={() => setActiveTab('exams')}>
+                  Browse Question Bank
+                </button>
+              </div>
+            </div>
+
+            {/* Bento Tile 6: Quick Action Shortcuts (span 5) */}
+            <div className="bento-card bento-actions">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <p className="eyebrow" style={{ margin: 0 }}>QUICK SHORTCUTS</p>
+                  <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: '16px', margin: '4px 0 0' }}>Workspace Actions</h3>
+                </div>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f1f5f9', color: '#475569', display: 'grid', placeItems: 'center' }}>
+                  <Plus size={16} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {role === 'admin' && (
+                  <>
+                    <button className="bento-shortcut-item" onClick={() => setActiveTab('faculty')}>
+                      <span>+ Provision Faculty Member</span>
+                      <span>&rarr;</span>
+                    </button>
+                    <button className="bento-shortcut-item" onClick={() => setActiveTab('students')}>
+                      <span>+ Enroll Student Account</span>
+                      <span>&rarr;</span>
+                    </button>
+                    <button className="bento-shortcut-item" onClick={() => setIsCourseModalOpen(true)}>
+                      <span>+ Add Course Curriculum</span>
+                      <span>&rarr;</span>
+                    </button>
+                    <button className="bento-shortcut-item" onClick={() => setIsExamModalOpen(true)}>
+                      <span>✨ Author Exam with AI</span>
+                      <span>&rarr;</span>
+                    </button>
+                  </>
+                )}
+
+                {role === 'faculty' && (
+                  <>
+                    <button className="bento-shortcut-item" onClick={() => setActiveTab('students')}>
+                      <span>+ Enroll Students in My Courses</span>
+                      <span>&rarr;</span>
+                    </button>
+                    <button className="bento-shortcut-item" onClick={() => setIsExamModalOpen(true)}>
+                      <span>✨ AI Assessment Generator</span>
+                      <span>&rarr;</span>
+                    </button>
+                    <button className="bento-shortcut-item" onClick={() => setActiveTab('courses')}>
+                      <span>View Assigned Subjects</span>
+                      <span>&rarr;</span>
+                    </button>
+                    <button className="bento-shortcut-item" onClick={() => setActiveTab('results')}>
+                      <span>Review Submissions & Grades</span>
+                      <span>&rarr;</span>
+                    </button>
+                  </>
+                )}
+
+                {role === 'student' && (
+                  <>
+                    <button className="bento-shortcut-item" onClick={() => setActiveTab('exams')}>
+                      <span>Take Active Examination</span>
+                      <span>&rarr;</span>
+                    </button>
+                    <button className="bento-shortcut-item" onClick={() => setActiveTab('results')}>
+                      <span>Review Scorecards & Feedback</span>
+                      <span>&rarr;</span>
+                    </button>
+                    <button className="bento-shortcut-item" onClick={() => setActiveTab('profile')}>
+                      <span>My Enrolled Courses & Profile</span>
+                      <span>&rarr;</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Bento Tile 7: Recent Assessments (span 7) */}
+            <div className="bento-card bento-recent">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <p className="eyebrow" style={{ margin: 0 }}>ASSESSMENT ACTIVITY</p>
+                  <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: '16px', margin: '4px 0 0' }}>Recent Examinations</h3>
+                </div>
+                <button className="btn btn-secondary btn-sm" onClick={() => setActiveTab('exams')}>
+                  View All &rarr;
+                </button>
+              </div>
+
+              {recentExams.length > 0 ? (
+                <div>
+                  {recentExams.map((ex) => (
+                    <div key={ex.id} className="bento-exam-item">
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '13px', color: '#1e293b' }}>{ex.title}</strong>
+                        <span style={{ fontSize: '11px', color: '#64748b' }}>
+                          {ex.courseName || 'General Assessment'} · {ex.durationMinutes} mins · {ex.totalMarks} marks
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className={`badge badge-status-${ex.status}`}>{ex.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '30px 10px', color: '#64748b' }}>
+                  <ClipboardList size={30} style={{ margin: '0 auto 8px', opacity: 0.4 }} />
+                  <p style={{ margin: 0, fontSize: '13px' }}>No examinations scheduled yet.</p>
+                  <button className="btn btn-secondary btn-sm" style={{ marginTop: '12px' }} onClick={() => setIsExamModalOpen(true)}>
+                    Create First Exam
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Bento Tile 8: Zero-Cost Architecture & Health (span 5) */}
+            <div className="bento-card bento-infra">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <p className="eyebrow" style={{ margin: 0 }}>HYBRID INFRASTRUCTURE</p>
+                  <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: '16px', margin: '4px 0 0' }}>Zero-Cost Cloud Status</h3>
+                </div>
+                <ShieldCheck size={20} color="#059669" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {[
+                  { name: 'Firebase Cloud Firestore', value: 'Spark Free Plan', status: 'Online' },
+                  { name: 'Firebase Authentication', value: 'Role Hierarchy Active', status: 'Protected' },
+                  { name: 'Google Gemini AI API', value: 'Gemini 1.5 Flash', status: 'Connected' },
+                  { name: 'Container Architecture', value: 'Alpine Multi-Stage', status: 'Production Ready' },
+                  { name: 'Deployment Target', value: 'Amazon ECR & Render', status: 'Zero-Cost' },
+                ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      background: '#f8fafc',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                    }}
+                  >
+                    <div>
+                      <strong style={{ display: 'block', color: '#1e293b' }}>{item.name}</strong>
+                      <span style={{ color: '#64748b' }}>{item.value}</span>
+                    </div>
+                    <span className="bento-chip bento-chip-emerald" style={{ fontSize: '10px', padding: '2px 8px' }}>
+                      {item.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Tab: Faculty Management (Admin only) */}
