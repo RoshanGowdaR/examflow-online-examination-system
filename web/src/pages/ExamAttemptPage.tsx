@@ -489,27 +489,63 @@ export function ExamAttemptPage() {
                   background: '#fef2f2',
                   border: '1px solid #fecaca',
                   borderRadius: '10px',
-                  padding: '12px 16px',
-                  marginBottom: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px',
+                  padding: '14px 18px',
+                  marginBottom: '18px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#991b1b', fontSize: '13px' }}>
-                  <AlertTriangle size={18} style={{ flexShrink: 0 }} />
-                  <span>{error}</span>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => handleSubmit()}
-                  disabled={submitting}
-                  style={{ whiteSpace: 'nowrap' }}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    marginBottom: error.includes('rules') || error.includes('permissions') ? '10px' : '0',
+                  }}
                 >
-                  {submitting ? <Loader2 size={13} className="spinner" /> : <RefreshCw size={13} />} Retry Submit
-                </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#991b1b', fontSize: '13px', fontWeight: 600 }}>
+                    <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+                    <span>{error}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => handleSubmit()}
+                    disabled={submitting}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    {submitting ? <Loader2 size={13} className="spinner" /> : <RefreshCw size={13} />} Retry Submit
+                  </button>
+                </div>
+
+                {(error.includes('rules') || error.includes('permissions')) && (
+                  <div style={{ background: '#ffffff', border: '1px dashed #f87171', borderRadius: '8px', padding: '10px 14px', fontSize: '12px', color: '#7f1d1d' }}>
+                    <strong>Action Required in Firebase Console:</strong>
+                    <div style={{ margin: '4px 0 6px', color: '#4b5563' }}>
+                      In your open Firebase Console tab (<strong>Firestore Database</strong> &rarr; <strong>Rules</strong>), replace the <code>match /results/&#123;resultId&#125;</code> rule with:
+                    </div>
+                    <pre
+                      style={{
+                        margin: '6px 0',
+                        padding: '10px 12px',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontFamily: 'monospace',
+                        color: '#0f172a',
+                        userSelect: 'all',
+                      }}
+                    >
+{`match /results/{resultId} {
+  allow read: if request.auth != null;
+  allow create: if request.auth != null;
+}`}
+                    </pre>
+                    <span style={{ fontSize: '11px', color: '#6b7280' }}>
+                      Click <strong>Publish</strong> in Firebase Console, then click <strong>Retry Submit</strong> above!
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

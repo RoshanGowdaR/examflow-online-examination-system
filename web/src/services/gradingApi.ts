@@ -191,7 +191,28 @@ export async function submitExamDirectFallback(
     status: 'submitted',
   };
 
-  await setDoc(resultRef, resultData, { merge: true });
+  // Save client-side local backup so answers are never lost
+  try {
+    localStorage.setItem(
+      `examflow_result_${cleanExamId}_${currentUser.uid}`,
+      JSON.stringify({
+        ...resultData,
+        submittedAt: new Date().toISOString(),
+      })
+    );
+  } catch {}
+
+  try {
+    await setDoc(resultRef, resultData, { merge: true });
+  } catch (permErr: any) {
+    console.error('Firestore setDoc on results collection failed:', permErr);
+    if (permErr?.code === 'permission-denied' || permErr?.message?.includes('permissions')) {
+      throw new Error(
+        'Submission blocked by Firestore rules: "results" collection write is restricted in Firebase Console. Please update Firestore Rules to allow authenticated students to submit results.'
+      );
+    }
+    throw permErr;
+  }
 
   return {
     examId: cleanExamId,

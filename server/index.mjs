@@ -47,6 +47,15 @@ function getDb() {
   if (firestore) return firestore;
   const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
+  const candidateKeyPaths = [
+    process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    path.join(__dirname, 'serviceAccountKey.json'),
+    path.join(__dirname, '../serviceAccountKey.json'),
+    path.join(process.cwd(), 'serviceAccountKey.json'),
+  ].filter(Boolean);
+
+  const foundKeyPath = candidateKeyPaths.find((p) => typeof p === 'string' && fs.existsSync(p));
+
   if (rawServiceAccount && rawServiceAccount.trim()) {
     try {
       const serviceAccount = JSON.parse(rawServiceAccount);
@@ -57,6 +66,17 @@ function getDb() {
     } catch (parseErr) {
       console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON', parseErr);
       throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON contains invalid JSON');
+    }
+  } else if (foundKeyPath) {
+    try {
+      const serviceAccount = JSON.parse(fs.readFileSync(foundKeyPath, 'utf8'));
+      adminApp = admin.apps.length ? admin.app() : admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || FIREBASE_PROJECT_ID,
+      });
+      console.log(`[ExamFlow] Successfully loaded Service Account credentials from: ${foundKeyPath}`);
+    } catch (keyErr) {
+      console.error(`Failed to load service account file from ${foundKeyPath}:`, keyErr);
     }
   } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS && fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
     adminApp = admin.apps.length ? admin.app() : admin.initializeApp({

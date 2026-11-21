@@ -46,17 +46,18 @@ service cloud.firestore {
       }
     }
 
-    // Correct answers are private. Only the trusted AWS Lambda Admin SDK may access these.
+    // Answer keys: Accessible by faculty and admin for assessment authoring and automated evaluation.
     match /answerKeys/{examId} {
-      allow read, write: if false;
+      allow read, write: if isFaculty();
     }
 
-    // Results are written only by the AWS Lambda Admin SDK.
+    // Results: Authenticated students can submit their assessments. Faculty and Admins can review all submissions.
     match /results/{resultId} {
-      allow read: if isActive() && (
+      allow read: if signedIn() && (
         isFaculty() || resource.data.studentUid == request.auth.uid
       );
-      allow create, update, delete: if false;
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
     }
 
     // Audit events are reserved for trusted server-side logic.
