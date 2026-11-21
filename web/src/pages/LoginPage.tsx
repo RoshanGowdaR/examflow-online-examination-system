@@ -1,5 +1,15 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowRight, BookOpenCheck, Cloud, ShieldCheck, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpenCheck,
+  Cloud,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -86,9 +96,30 @@ export function LoginPage() {
   return (
     <main className="login-shell">
       <section className="login-aside">
-        <div className="brand brand-light" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} title="Return to Home">
-          <span className="brand-mark"><BookOpenCheck size={22} /></span>
-          <span>ExamFlow</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <div className="brand brand-light" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} title="Return to Home">
+            <span className="brand-mark"><BookOpenCheck size={22} /></span>
+            <span>ExamFlow</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            style={{
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.22)',
+              borderRadius: '6px',
+              color: '#ffffff',
+              padding: '6px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <ArrowLeft size={14} /> Back to Home
+          </button>
         </div>
         <div className="aside-copy">
           <p className="eyebrow">GROUP 12 PROJECT</p>
@@ -102,6 +133,40 @@ export function LoginPage() {
 
       <section className="login-panel">
         <div className="login-card">
+          {/* Prominent Go Back to Home Button */}
+          <div style={{ marginBottom: '22px' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 700,
+                color: '#1e293b',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease-in-out',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f8fafc';
+                e.currentTarget.style.borderColor = '#94a3b8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+            >
+              <ArrowLeft size={16} />
+              <span>Go Back to Home</span>
+            </button>
+          </div>
+
           <p className="eyebrow">WELCOME BACK</p>
           <h2>Sign in to your account</h2>
           <p className="muted">Use the account provided by your examination administrator.</p>
@@ -219,6 +284,26 @@ export function LoginPage() {
           </form>
 
           <p className="login-note">New users are created by the administrator. Public registration is disabled.</p>
+
+          <div style={{ marginTop: '24px', paddingTop: '18px', borderTop: '1px solid #edf2f7', textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              style={{
+                background: 'none',
+                border: 0,
+                color: '#2563eb',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <ArrowLeft size={14} /> Return to ExamFlow Landing Page
+            </button>
+          </div>
         </div>
       </section>
     </main>

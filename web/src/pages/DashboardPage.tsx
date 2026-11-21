@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   CalendarDays,
@@ -15,6 +16,7 @@ import {
   Settings,
   UserCheck,
   User,
+  Home,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { FacultyManagementView } from '../components/FacultyManagementView';
@@ -34,6 +36,7 @@ import type { Exam } from '../types';
 
 export function DashboardPage() {
   const { user, profile, signOutUser } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // Modals
@@ -90,7 +93,7 @@ export function DashboardPage() {
     <div className="app-shell">
       {/* Sidebar Navigation */}
       <aside className="sidebar">
-        <div className="brand" onClick={() => setActiveTab('dashboard')} style={{ cursor: 'pointer' }}>
+        <div className="brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} title="ExamFlow Landing Page">
           <span className="brand-mark"><BookOpen size={21} /></span>
           <span>ExamFlow</span>
         </div>
@@ -230,6 +233,15 @@ export function DashboardPage() {
         )}
 
         <div className="sidebar-bottom">
+          <button
+            type="button"
+            className="side-link"
+            onClick={() => navigate('/')}
+            style={{ width: '100%', marginBottom: '8px', color: '#93c5fd', background: 'rgba(255, 255, 255, 0.05)' }}
+            title="Return to ExamFlow Landing Page"
+          >
+            <Home size={17} /> Landing Page
+          </button>
           <div className="cloud-status">
             <span className="status-dot" style={{ background: isApiReady ? '#36c98f' : '#f59e0b' }} />
             {isApiReady ? 'Firebase + AWS Active' : 'Firebase Connected'}
