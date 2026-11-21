@@ -40,25 +40,47 @@ export async function sendUserPasswordReset(
   usnOrRole?: string
 ): Promise<{ provisioned: boolean; temporaryPassword?: string; message: string }> {
   const cleanEmail = email.trim().toLowerCase();
+  const tempPass = usnOrRole && usnOrRole.length > 2 ? `${usnOrRole.toUpperCase()}@123` : 'Student@123';
+
   try {
+    // Check/provision in Firebase Auth
+    const authUid = await provisionAuthAccount(cleanEmail, tempPass);
+    if (authUid) {
+      const usersRef = collection(db, 'users');
+      const existingSnap = await getDocs(query(usersRef, where('email', '==', cleanEmail)));
+      if (!existingSnap.empty) {
+        const existingData = existingSnap.docs[0].data();
+        await setDoc(doc(db, 'users', authUid), { ...existingData, uid: authUid }, { merge: true });
+      }
+    }
+
+    // Dispatch password setup email via Firebase Authentication
     await sendPasswordResetEmail(auth, cleanEmail);
+
     return {
-      provisioned: false,
-      message: `Password setup link sent to ${cleanEmail}. The user can open that link in their inbox to set their password.`,
+      provisioned: Boolean(authUid),
+      temporaryPassword: tempPass,
+      message: `Password setup email sent to ${cleanEmail}! The user can open their inbox, click the link to set their password, and then sign in.`,
     };
   } catch (err: any) {
     if (err?.code === 'auth/user-not-found') {
-      // User is not in Firebase Auth yet! Provision them with temporary password
-      const tempPass = usnOrRole && usnOrRole.length > 2 ? `${usnOrRole.toUpperCase()}@123` : 'Student@123';
-      await provisionAuthAccount(cleanEmail, tempPass);
-      await sendPasswordResetEmail(auth, cleanEmail).catch(() => {});
+      const authUid = await provisionAuthAccount(cleanEmail, tempPass);
+      if (authUid) {
+        const usersRef = collection(db, 'users');
+        const existingSnap = await getDocs(query(usersRef, where('email', '==', cleanEmail)));
+        if (!existingSnap.empty) {
+          const existingData = existingSnap.docs[0].data();
+          await setDoc(doc(db, 'users', authUid), { ...existingData, uid: authUid }, { merge: true });
+        }
+      }
+      await sendPasswordResetEmail(auth, cleanEmail);
       return {
         provisioned: true,
         temporaryPassword: tempPass,
-        message: `Account activated in Firebase Auth! Temporary password is "${tempPass}". Setup link also sent to ${cleanEmail}.`,
+        message: `Account activated and password setup email sent to ${cleanEmail}! The user can open the link in their inbox to set their password.`,
       };
     }
-    throw new Error(err?.message || 'Failed to send password reset email.');
+    throw new Error(err?.message || 'Failed to send password setup email.');
   }
 }
 

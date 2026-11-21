@@ -54,6 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               email: String(data.email ?? nextUser.email ?? ''),
               role: data.role,
               active: data.active,
+              department: data.department || '',
+              employeeId: data.employeeId || '',
+              assignedCourses: Array.isArray(data.assignedCourses) ? data.assignedCourses : [],
+              usn: data.usn || '',
+              semester: data.semester || '',
+              courseIds: Array.isArray(data.courseIds) ? data.courseIds : [],
             });
           }
         }
