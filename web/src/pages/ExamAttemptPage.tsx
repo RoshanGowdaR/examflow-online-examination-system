@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Clock,
@@ -9,6 +9,12 @@ import {
   Send,
   Loader2,
   Award,
+  ShieldAlert,
+  ShieldCheck,
+  Maximize2,
+  Minimize2,
+  AlertOctagon,
+  RefreshCw,
 } from 'lucide-react';
 import type { Exam, Question } from '../types';
 import { getExamById, getQuestionsForExam } from '../services/exams';
@@ -33,6 +39,13 @@ export function ExamAttemptPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // Anti Tab-Switch System state
+  const [tabSwitchViolations, setTabSwitchViolations] = useState(0);
+  const [showViolationModal, setShowViolationModal] = useState(false);
+  const [isDisqualified, setIsDisqualified] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const lastViolationTimeRef = useRef<number>(0);
 
   // Timer state (seconds remaining)
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
@@ -97,21 +110,97 @@ export function ExamAttemptPage() {
     load();
   }, [examId, user]);
 
-  // Submit function
-  const handleSubmit = useCallback(async () => {
-    if (!examId || submitting) return;
-    try {
-      setSubmitting(true);
-      setShowConfirmModal(false);
-      setError('');
-      const result = await submitExam(examId, answers);
-      setSubmissionResult(result);
-    } catch (err: any) {
-      setError(err?.message || 'Submission failed. Please try again.');
-    } finally {
-      setSubmitting(false);
+  // Submit function with anti-cheat violation tracking
+  const handleSubmit = useCallback(
+    async (forcedViolations?: number) => {
+      if (!examId || submitting) return;
+      try {
+        setSubmitting(true);
+        setShowConfirmModal(false);
+        setShowViolationModal(false);
+        setError('');
+
+        const violationsToSend =
+          typeof forcedViolations === 'number' ? forcedViolations : tabSwitchViolations;
+
+        const result = await submitExam(examId, answers, violationsToSend);
+        setSubmissionResult(result);
+      } catch (err: any) {
+        console.error('Submission failed:', err);
+        setError(err?.message || 'Submission failed. Please check your network and try again.');
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [examId, answers, submitting, tabSwitchViolations]
+  );
+
+  // -------------------------------------------------------------
+  // Anti Tab-Switch Proctored Monitoring Engine
+  // -------------------------------------------------------------
+  useEffect(() => {
+    if (loading || alreadySubmitted || submissionResult !== null || submitting || isDisqualified) {
+      return;
     }
-  }, [examId, answers, submitting]);
+
+    const triggerViolation = () => {
+      const now = Date.now();
+      // Debounce consecutive blur/visibility events by 2 seconds
+      if (now - lastViolationTimeRef.current < 2000) return;
+      lastViolationTimeRef.current = now;
+
+      setTabSwitchViolations((prev) => {
+        const next = prev + 1;
+        if (next >= 3) {
+          setIsDisqualified(true);
+          // Automatic submission upon reaching 3 violations
+          setTimeout(() => {
+            handleSubmit(next);
+          }, 800);
+        } else {
+          setShowViolationModal(true);
+        }
+        return next;
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        triggerViolation();
+      }
+    };
+
+    const handleWindowBlur = () => {
+      triggerViolation();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [loading, alreadySubmitted, submissionResult, submitting, isDisqualified, handleSubmit]);
+
+  // Fullscreen event listener
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  };
 
   // Countdown timer interval
   useEffect(() => {
@@ -204,10 +293,11 @@ export function ExamAttemptPage() {
   if (submissionResult) {
     const pct = submissionResult.percentage;
     const isPassing = pct >= 50;
+    const violations = submissionResult.tabSwitchViolations ?? tabSwitchViolations;
 
     return (
       <div className="center-page">
-        <div className="status-card" style={{ textAlign: 'center', maxWidth: '580px' }}>
+        <div className="status-card" style={{ textAlign: 'center', maxWidth: '600px' }}>
           <div
             className="status-icon"
             style={{
@@ -219,13 +309,28 @@ export function ExamAttemptPage() {
             <Award size={26} />
           </div>
 
-          <span className="eyebrow" style={{ color: '#027a48' }}>AUTOMATED GRADING COMPLETE</span>
+          <span className="eyebrow" style={{ color: '#027a48' }}>
+            {violations >= 3 ? 'AUTO-SUBMITTED (TAB VIOLATIONS EXCEEDED)' : 'ASSESSMENT EVALUATION COMPLETE'}
+          </span>
           <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: '26px', margin: '4px 0 10px' }}>
             Assessment Result
           </h2>
           <p className="muted">
-            Evaluated by the trusted AWS Lambda backend using private server-side answer keys.
+            {violations >= 3
+              ? 'Your assessment was auto-submitted due to exceeding 3 tab-switch violations. Results have been recorded for faculty review.'
+              : 'Evaluated by the trusted backend grading engine with tamper-proof answers.'}
           </p>
+
+          {/* Integrity Pill */}
+          <div style={{ margin: '16px auto', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, background: violations === 0 ? '#ecfdf3' : violations >= 3 ? '#fee2e2' : '#fef0c7', color: violations === 0 ? '#027a48' : violations >= 3 ? '#991b1b' : '#b54708', border: `1px solid ${violations === 0 ? '#a6f4c5' : violations >= 3 ? '#fca5a5' : '#fedf89'}` }}>
+            {violations === 0 ? (
+              <><ShieldCheck size={15} /> Proctored Session Clean (0 Tab Switches)</>
+            ) : violations >= 3 ? (
+              <><AlertOctagon size={15} /> Flagged: 3 / 3 Tab Switches (Auto-Submitted)</>
+            ) : (
+              <><ShieldAlert size={15} /> Flagged: {violations} Tab Switch Warning{violations === 1 ? '' : 's'}</>
+            )}
+          </div>
 
           <div
             style={{
@@ -233,7 +338,7 @@ export function ExamAttemptPage() {
               border: '1px solid #e2e8f0',
               borderRadius: '12px',
               padding: '24px',
-              margin: '24px 0',
+              margin: '16px 0 24px',
             }}
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
@@ -271,7 +376,7 @@ export function ExamAttemptPage() {
 
   return (
     <div className="exam-fullscreen">
-      {/* Top Navigation Bar with Countdown Timer */}
+      {/* Top Navigation Bar with Anti-Cheat, Timer, Fullscreen, and Submit */}
       <header className="exam-navbar">
         <div className="exam-navbar-title">
           <button
@@ -289,7 +394,76 @@ export function ExamAttemptPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Anti Tab-Switch Proctored Indicator */}
+          <div
+            title="Anti Tab-Switch Proctoring Engine Active. Tab switches are strictly monitored."
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '20px',
+              fontSize: '11px',
+              fontWeight: 700,
+              background:
+                tabSwitchViolations === 0
+                  ? '#ecfdf3'
+                  : tabSwitchViolations === 1
+                  ? '#fef0c7'
+                  : tabSwitchViolations === 2
+                  ? '#ffedd5'
+                  : '#fee2e2',
+              color:
+                tabSwitchViolations === 0
+                  ? '#027a48'
+                  : tabSwitchViolations === 1
+                  ? '#b54708'
+                  : tabSwitchViolations === 2
+                  ? '#c2410c'
+                  : '#b91c1c',
+              border: `1px solid ${
+                tabSwitchViolations === 0
+                  ? '#a6f4c5'
+                  : tabSwitchViolations === 1
+                  ? '#fedf89'
+                  : tabSwitchViolations === 2
+                  ? '#fdba74'
+                  : '#fca5a5'
+              }`,
+            }}
+          >
+            {tabSwitchViolations === 0 ? (
+              <ShieldCheck size={14} />
+            ) : tabSwitchViolations >= 3 ? (
+              <AlertOctagon size={14} />
+            ) : (
+              <ShieldAlert size={14} />
+            )}
+            <span>
+              {tabSwitchViolations === 0
+                ? 'Anti-Cheat: 0 / 3 Switches'
+                : tabSwitchViolations === 1
+                ? '1 / 3 Switches'
+                : tabSwitchViolations === 2
+                ? '2 / 3 Switches (Final Warning)'
+                : '3 / 3 (Auto-Submitting)'}
+            </span>
+          </div>
+
+          {/* Fullscreen Toggle */}
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enable Fullscreen Mode'}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}
+          >
+            {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            <span style={{ fontSize: '11px' }}>{isFullscreen ? 'Exit Full' : 'Fullscreen'}</span>
+          </button>
+
+          {/* Timer Chip */}
           {secondsRemaining !== null && (
             <div className={`timer-chip ${isUrgent ? 'timer-urgent' : ''}`}>
               <Clock size={16} />
@@ -308,6 +482,37 @@ export function ExamAttemptPage() {
         {/* Left Column: Current Question */}
         <section className="exam-question-card">
           <div>
+            {/* Actionable Error Banner if Submission failed */}
+            {error && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#991b1b', fontSize: '13px' }}>
+                  <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+                  <span>{error}</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => handleSubmit()}
+                  disabled={submitting}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {submitting ? <Loader2 size={13} className="spinner" /> : <RefreshCw size={13} />} Retry Submit
+                </button>
+              </div>
+            )}
+
             <div className="exam-question-top">
               <span className="badge" style={{ background: '#f1f5f9', color: '#334155', fontWeight: 700 }}>
                 Question {currentIndex + 1}
@@ -412,7 +617,122 @@ export function ExamAttemptPage() {
         </aside>
       </main>
 
-      {/* Confirmation Modal */}
+      {/* ----------------------------------------------------------- */}
+      {/* Anti Tab-Switch Warning Modal                              */}
+      {/* ----------------------------------------------------------- */}
+      {showViolationModal && !isDisqualified && (
+        <div className="modal-backdrop" style={{ zIndex: 9999, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(5px)' }}>
+          <div className="modal-container" style={{ maxWidth: '480px', border: '2px solid #ef4444', animation: 'scaleIn 0.2s ease-out' }}>
+            <div className="modal-body" style={{ textAlign: 'center', padding: '28px 24px' }}>
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 14px',
+                }}
+              >
+                <AlertTriangle size={30} />
+              </div>
+
+              <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#991b1b', margin: '0 0 6px', fontFamily: 'Manrope, sans-serif' }}>
+                Tab Switch Detected!
+              </h3>
+
+              <div
+                style={{
+                  display: 'inline-block',
+                  background: '#fee2e2',
+                  color: '#b91c1c',
+                  border: '1px solid #fca5a5',
+                  padding: '4px 12px',
+                  borderRadius: '16px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  marginBottom: '14px',
+                }}
+              >
+                VIOLATION {tabSwitchViolations} OF 3 RECORDED
+              </div>
+
+              <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#475467', lineHeight: 1.6 }}>
+                You navigated away from the examination window. Switching tabs, opening other applications, or minimizing the browser window is strictly prohibited under institutional examination rules.
+              </p>
+
+              <div
+                style={{
+                  background: '#fff1f2',
+                  border: '1px solid #fecdd3',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  fontSize: '12px',
+                  color: '#9f1239',
+                  textAlign: 'left',
+                  marginBottom: '20px',
+                }}
+              >
+                <strong>Critical Warning:</strong> If you switch tabs <strong>{3 - tabSwitchViolations} more time{3 - tabSwitchViolations === 1 ? '' : 's'}</strong>, your examination will be <strong>automatically finalized and submitted immediately</strong>, and your session will be flagged for academic dishonesty.
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ width: '100%', height: '42px', fontWeight: 700 }}
+                onClick={() => setShowViolationModal(false)}
+              >
+                I Understand & Resume Examination
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------------------------------------------------- */}
+      {/* Auto-Submitting Disqualification Overlay                    */}
+      {/* ----------------------------------------------------------- */}
+      {isDisqualified && (
+        <div className="modal-backdrop" style={{ zIndex: 9999, background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)' }}>
+          <div className="modal-container" style={{ maxWidth: '480px', border: '2px solid #b91c1c', textAlign: 'center', padding: '32px 24px' }}>
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: '#fee2e2',
+                color: '#991b1b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <AlertOctagon size={36} />
+            </div>
+
+            <h3 style={{ fontSize: '22px', fontWeight: 800, color: '#991b1b', margin: '0 0 8px', fontFamily: 'Manrope, sans-serif' }}>
+              Maximum Tab Violations Exceeded
+            </h3>
+
+            <p style={{ fontSize: '14px', color: '#475467', lineHeight: 1.6, margin: '0 0 18px' }}>
+              You switched tabs 3 times during the examination. Under proctoring policy, your assessment is being automatically finalized and submitted now.
+            </p>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#991b1b', fontWeight: 700, fontSize: '13px' }}>
+              <Loader2 size={18} className="spinner" />
+              <span>Finalizing and submitting examination...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------------------------------------------------- */}
+      {/* Manual Submission Confirmation Modal                        */}
+      {/* ----------------------------------------------------------- */}
       {showConfirmModal && (
         <div className="modal-backdrop">
           <div className="modal-container" style={{ maxWidth: '440px' }}>
@@ -425,11 +745,16 @@ export function ExamAttemptPage() {
               </p>
               {questions.length - answeredCount > 0 && (
                 <p style={{ margin: '10px 0 0', fontSize: '12px', color: '#b42318' }}>
-                  Warning: You have {questions.length - answeredCount} unanswered questions!
+                  Warning: You have {questions.length - answeredCount} unanswered question{questions.length - answeredCount === 1 ? '' : 's'}!
+                </p>
+              )}
+              {tabSwitchViolations > 0 && (
+                <p style={{ margin: '10px 0 0', fontSize: '12px', color: '#b54708', fontWeight: 600 }}>
+                  Note: {tabSwitchViolations} tab switch warning{tabSwitchViolations === 1 ? '' : 's'} will be recorded with your submission.
                 </p>
               )}
               <p style={{ margin: '10px 0 0', fontSize: '11px', color: '#64748b' }}>
-                Once submitted, your answers will be finalized and evaluated by AWS Lambda. You cannot change your responses.
+                Once submitted, your answers are finalized and evaluated by the grading backend. You cannot change your responses.
               </p>
             </div>
             <div className="modal-footer">
@@ -444,7 +769,7 @@ export function ExamAttemptPage() {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={handleSubmit}
+                onClick={() => handleSubmit()}
                 disabled={submitting}
               >
                 {submitting ? <><Loader2 size={14} className="spinner" /> Submitting...</> : 'Confirm Submission'}

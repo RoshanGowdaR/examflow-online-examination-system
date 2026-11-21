@@ -82,6 +82,8 @@ export interface ExamResult {
   percentage: number;
   submittedAt: any;
   status: 'submitted';
+  tabSwitchViolations?: number;
+  isFlagged?: boolean;
   breakdown?: Record<string, { answered: boolean; correct: boolean; marksAwarded: number }>;
 }
 

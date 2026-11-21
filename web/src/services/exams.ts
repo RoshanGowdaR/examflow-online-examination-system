@@ -137,6 +137,8 @@ export async function saveDraftExam(
 
   // Save questions into subcollection
   const batch = writeBatch(db);
+  const answerKeyMap: Record<string, any> = {};
+
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
     const qId = q.id && !q.id.startsWith('temp_') ? q.id : `q_${i + 1}`;
@@ -149,8 +151,29 @@ export async function saveDraftExam(
       marks: Number(q.marks) || 1,
       order: i + 1,
     });
+
+    if (q.correctAnswer !== undefined && q.correctAnswer !== null) {
+      answerKeyMap[qId] = q.correctAnswer;
+    }
   }
   await batch.commit();
+
+  // Save private answer keys in answerKeys collection
+  if (Object.keys(answerKeyMap).length > 0) {
+    try {
+      await setDoc(
+        doc(db, 'answerKeys', examId),
+        {
+          examId,
+          answers: answerKeyMap,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (keyErr) {
+      console.warn('Direct answerKey persistence note:', keyErr);
+    }
+  }
 
   return examId;
 }

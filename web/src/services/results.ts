@@ -22,6 +22,8 @@ export async function getStudentResults(studentUid: string): Promise<ExamResult[
       percentage: Number(data.percentage ?? 0),
       submittedAt: data.submittedAt,
       status: 'submitted',
+      tabSwitchViolations: Number(data.tabSwitchViolations || 0),
+      isFlagged: Boolean(data.isFlagged || (data.tabSwitchViolations >= 3)),
       breakdown: data.breakdown,
     };
   });
@@ -46,6 +48,8 @@ export async function getAllResults(): Promise<ExamResult[]> {
       percentage: Number(data.percentage ?? 0),
       submittedAt: data.submittedAt,
       status: 'submitted',
+      tabSwitchViolations: Number(data.tabSwitchViolations || 0),
+      isFlagged: Boolean(data.isFlagged || (data.tabSwitchViolations >= 3)),
       breakdown: data.breakdown,
     };
   });
@@ -71,6 +75,8 @@ export async function getResultsForExam(examId: string): Promise<ExamResult[]> {
       percentage: Number(data.percentage ?? 0),
       submittedAt: data.submittedAt,
       status: 'submitted',
+      tabSwitchViolations: Number(data.tabSwitchViolations || 0),
+      isFlagged: Boolean(data.isFlagged || (data.tabSwitchViolations >= 3)),
       breakdown: data.breakdown,
     };
   });

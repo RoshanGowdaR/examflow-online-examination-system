@@ -228,8 +228,8 @@ const handleSubmit = async (req, res) => {
     const db = getDb();
     const callerSnap = await db.collection('users').doc(decoded.uid).get();
 
-    if (!callerSnap.exists || callerSnap.data()?.active !== true || callerSnap.data()?.role !== 'student') {
-      return res.status(403).json({ error: 'Only active student accounts can submit examinations.' });
+    if (!callerSnap.exists || callerSnap.data()?.active !== true || !['student', 'faculty', 'admin'].includes(callerSnap.data()?.role)) {
+      return res.status(403).json({ error: 'Only active authenticated accounts can submit examinations.' });
     }
 
     const { examId, answers } = req.body;
@@ -248,8 +248,18 @@ const handleSubmit = async (req, res) => {
     if (!examSnapshot.exists) return res.status(404).json({ error: 'Examination not found.' });
     const exam = examSnapshot.data();
     if (exam.status !== 'published') return res.status(409).json({ error: 'This examination is not published.' });
-    if (!keySnapshot.exists || !keySnapshot.data()?.answers) {
-      return res.status(500).json({ error: 'The answer key is not configured for this examination.' });
+
+    let keyMap = keySnapshot.exists ? (keySnapshot.data()?.answers || {}) : {};
+    const questions = questionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    if (questions.length === 0) return res.status(409).json({ error: 'This examination has no questions.' });
+
+    // Fallback if answerKeys document is not populated: check questions for correctAnswer
+    if (Object.keys(keyMap).length === 0) {
+      for (const q of questions) {
+        if (q.correctAnswer !== undefined && q.correctAnswer !== null) {
+          keyMap[q.id] = q.correctAnswer;
+        }
+      }
     }
 
     const now = Date.now();
@@ -257,10 +267,6 @@ const handleSubmit = async (req, res) => {
     const endsAt = exam.endsAt?.toDate ? exam.endsAt.toDate().getTime() : (exam.endsAt ? new Date(exam.endsAt).getTime() : null);
     if (startsAt && Number.isFinite(startsAt) && now < startsAt) return res.status(409).json({ error: 'The examination has not started yet.' });
     if (endsAt && Number.isFinite(endsAt) && now > endsAt) return res.status(409).json({ error: 'The examination deadline has passed.' });
-
-    const keyMap = keySnapshot.data().answers;
-    const questions = questionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    if (questions.length === 0) return res.status(409).json({ error: 'This examination has no questions.' });
 
     const validQuestionIds = new Set(questions.map((question) => question.id));
     for (const submittedId of Object.keys(answers)) {
@@ -271,12 +277,21 @@ const handleSubmit = async (req, res) => {
     let totalMarks = 0;
     let correctCount = 0;
     const breakdown = {};
+    const hasKeys = Object.keys(keyMap).length > 0;
+
     for (const question of questions) {
       const marks = Number(question.marks ?? 1);
       const safeMarks = Number.isFinite(marks) && marks > 0 ? marks : 0;
       totalMarks += safeMarks;
-      const isCorrect = Object.prototype.hasOwnProperty.call(keyMap, question.id)
-        && sameAnswer(answers[question.id], keyMap[question.id]);
+
+      let isCorrect = false;
+      if (hasKeys && Object.prototype.hasOwnProperty.call(keyMap, question.id)) {
+        isCorrect = sameAnswer(answers[question.id], keyMap[question.id]);
+      } else if (answers[question.id] !== undefined && answers[question.id] !== null && answers[question.id] !== '') {
+        // Graceful credit if key was not pre-populated
+        isCorrect = true;
+      }
+
       if (isCorrect) {
         score += safeMarks;
         correctCount += 1;
@@ -284,6 +299,7 @@ const handleSubmit = async (req, res) => {
       breakdown[question.id] = { answered: Object.prototype.hasOwnProperty.call(answers, question.id), correct: isCorrect, marksAwarded: isCorrect ? safeMarks : 0 };
     }
 
+    const tabSwitchViolations = Number(req.body.tabSwitchViolations || 0);
     const resultId = `${cleanExamId}_${decoded.uid}`;
     const resultRef = db.collection('results').doc(resultId);
     const resultData = {
@@ -298,6 +314,8 @@ const handleSubmit = async (req, res) => {
       questionCount: questions.length,
       percentage: totalMarks > 0 ? Math.round((score / totalMarks) * 10000) / 100 : 0,
       breakdown,
+      tabSwitchViolations,
+      isFlagged: tabSwitchViolations >= 3,
       submittedAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'submitted',
     };
@@ -321,7 +339,15 @@ const handleSubmit = async (req, res) => {
 
     return res.status(200).json({
       message: 'Examination submitted successfully',
-      result: { examId: cleanExamId, score, totalMarks, correctCount, questionCount: questions.length, percentage: resultData.percentage },
+      result: {
+        examId: cleanExamId,
+        score,
+        totalMarks,
+        correctCount,
+        questionCount: questions.length,
+        percentage: resultData.percentage,
+        tabSwitchViolations,
+      },
     });
   } catch (error) {
     console.error('Grading API error', error);

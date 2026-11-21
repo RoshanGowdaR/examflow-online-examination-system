@@ -108,6 +108,7 @@ export function ResultsView() {
                 <th>Score</th>
                 <th>Performance</th>
                 <th>Correct Questions</th>
+                <th>Anti-Cheat Status</th>
                 <th>Submitted At</th>
               </tr>
             </thead>
@@ -153,6 +154,48 @@ export function ResultsView() {
                       <span style={{ fontSize: '12px', color: '#475467' }}>
                         {r.correctCount} of {r.questionCount}
                       </span>
+                    </td>
+                    <td>
+                      {r.tabSwitchViolations === 0 || !r.tabSwitchViolations ? (
+                        <span
+                          className="badge"
+                          style={{
+                            background: '#ecfdf3',
+                            color: '#027a48',
+                            border: '1px solid #a6f4c5',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Clean (0 Switches)
+                        </span>
+                      ) : r.tabSwitchViolations >= 3 ? (
+                        <span
+                          className="badge"
+                          style={{
+                            background: '#fee2e2',
+                            color: '#991b1b',
+                            border: '1px solid #fca5a5',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                          }}
+                        >
+                          ⚠️ 3 Switches (Auto-Submitted)
+                        </span>
+                      ) : (
+                        <span
+                          className="badge"
+                          style={{
+                            background: '#fef0c7',
+                            color: '#b54708',
+                            border: '1px solid #fedf89',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          ⚠️ {r.tabSwitchViolations} Switch{r.tabSwitchViolations === 1 ? '' : 'es'}
+                        </span>
+                      )}
                     </td>
                     <td>
                       <span style={{ fontSize: '11px', color: '#64748b' }}>{submitDate}</span>
