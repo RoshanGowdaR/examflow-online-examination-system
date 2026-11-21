@@ -86,7 +86,10 @@ export function LoginPage() {
   return (
     <main className="login-shell">
       <section className="login-aside">
-        <div className="brand brand-light"><span className="brand-mark"><BookOpenCheck size={22} /></span><span>ExamFlow</span></div>
+        <div className="brand brand-light" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} title="Return to Home">
+          <span className="brand-mark"><BookOpenCheck size={22} /></span>
+          <span>ExamFlow</span>
+        </div>
         <div className="aside-copy">
           <p className="eyebrow">GROUP 12 PROJECT</p>
           <h1>Examinations, made simpler.</h1>
