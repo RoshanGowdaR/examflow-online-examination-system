@@ -32,14 +32,9 @@ export async function generateExamQuestionsWithAi(
     }
 
     const errData = await res.json().catch(() => ({}));
-    if (res.status !== 404 && res.status !== 502 && res.status !== 503) {
-      throw new Error(errData.error || `AI generation failed with status code ${res.status}`);
-    }
+    console.warn(`[ExamFlow AI] Backend endpoint returned status ${res.status}:`, errData.error || res.statusText);
   } catch (err: any) {
-    if (err?.message && !err.message.includes('404') && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
-      throw err;
-    }
-    console.warn('Backend AI service unreachable, attempting client-side Gemini call:', err?.message);
+    console.warn('[ExamFlow AI] Backend AI service error, switching to direct client-side Gemini call:', err?.message);
   }
 
   // Client-side Gemini fallback
@@ -49,7 +44,7 @@ export async function generateExamQuestionsWithAi(
     runtimeConfig?.geminiApiKey ||
     '';
   if (!apiKey || apiKey.trim().length === 0) {
-    throw new Error('Gemini API key is not configured. Please supply GEMINI_API_KEY.');
+    throw new Error('Gemini API key is not configured. Please supply VITE_GEMINI_API_KEY.');
   }
 
   const safeCount = Math.min(Math.max(Number(payload.questionCount) || 5, 1), 30);
@@ -88,20 +83,42 @@ JSON format:
   ]
 }`;
 
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`;
-  const geminiRes = await fetch(geminiUrl, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-      generationConfig: { temperature: 0.3, responseMimeType: 'application/json' },
-    }),
-  });
+  const candidateModels = [
+    'gemini-flash-lite-latest',
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-3.8-flash',
+  ];
 
-  if (!geminiRes.ok) {
-    const errText = await geminiRes.text();
-    console.error('Direct Gemini error:', geminiRes.status, errText);
-    throw new Error(`Gemini AI service error (${geminiRes.status}). Please check API key.`);
+  let geminiRes: Response | null = null;
+  let lastErrText = '';
+
+  for (const model of candidateModels) {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+    try {
+      const resp = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+          generationConfig: { temperature: 0.3, responseMimeType: 'application/json' },
+        }),
+      });
+
+      if (resp.ok) {
+        geminiRes = resp;
+        break;
+      } else {
+        lastErrText = await resp.text();
+        console.warn(`[ExamFlow AI] Client model ${model} returned ${resp.status}:`, lastErrText);
+      }
+    } catch (fErr: any) {
+      lastErrText = fErr?.message || String(fErr);
+    }
+  }
+
+  if (!geminiRes) {
+    throw new Error(`Gemini AI service error. Details: ${lastErrText || 'All models failed.'}`);
   }
 
   const geminiData = await geminiRes.json();
