@@ -15,6 +15,7 @@ import {
   Minimize2,
   AlertOctagon,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import type { Exam, Question } from '../types';
 import { getExamById, getQuestionsForExam } from '../services/exams';
@@ -761,6 +762,125 @@ export function ExamAttemptPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#991b1b', fontWeight: 700, fontSize: '13px' }}>
               <Loader2 size={18} className="spinner" />
               <span>Finalizing and submitting examination...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------------------------------------------------- */}
+      {/* Active Submission In-Progress Animated Overlay             */}
+      {/* ----------------------------------------------------------- */}
+      {submitting && (
+        <div
+          className="modal-backdrop"
+          style={{
+            zIndex: 10000,
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            className="modal-container"
+            style={{
+              maxWidth: '460px',
+              padding: '36px 28px',
+              textAlign: 'center',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+              borderRadius: '16px',
+              background: '#ffffff',
+              animation: 'scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            {/* Pulsing Animated Orbit Spinner */}
+            <div
+              style={{
+                position: 'relative',
+                width: '76px',
+                height: '76px',
+                margin: '0 auto 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '50%',
+                  border: '4px solid #e0e7ff',
+                  borderTopColor: '#2563eb',
+                  borderRightColor: '#6366f1',
+                  animation: 'spin 0.9s linear infinite',
+                }}
+              />
+              <div
+                style={{
+                  width: '54px',
+                  height: '54px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2563eb',
+                }}
+              >
+                <Sparkles size={24} />
+              </div>
+            </div>
+
+            <h3
+              style={{
+                fontFamily: 'Manrope, sans-serif',
+                fontSize: '22px',
+                fontWeight: 800,
+                color: '#0f172a',
+                margin: '0 0 8px',
+                letterSpacing: '-0.5px',
+              }}
+            >
+              Submitting Examination...
+            </h3>
+
+            <p style={{ fontSize: '13px', color: '#64748b', lineHeight: 1.6, margin: '0 0 20px' }}>
+              Please wait while your responses are securely packaged, validated against answer keys, and recorded to your academic transcript.
+            </p>
+
+            {/* Step-by-Step Progress Badges */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '14px 16px',
+                textAlign: 'left',
+                fontSize: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0f172a', fontWeight: 600 }}>
+                <CheckCircle2 size={16} color="#16a34a" />
+                <span>Responses verified ({answeredCount} of {questions.length} answered)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#2563eb', fontWeight: 600 }}>
+                <Loader2 size={16} className="spinner" />
+                <span>Evaluating answers & calculating score...</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#64748b' }}>
+                <ShieldCheck size={16} color="#94a3b8" />
+                <span>Recording proctored anti-cheat audit log</span>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '18px', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+              Do not close, minimize, or reload this window.
             </div>
           </div>
         </div>
