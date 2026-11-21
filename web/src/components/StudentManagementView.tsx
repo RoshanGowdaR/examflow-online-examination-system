@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { GraduationCap, Plus, Search, RefreshCw, Loader2, AlertCircle } from 'lucide-react';
+import { GraduationCap, Plus, Search, RefreshCw, Loader2, AlertCircle, KeyRound } from 'lucide-react';
 import type { UserProfile } from '../types';
-import { getStudentUsers, getStudentsForFaculty, toggleUserStatus } from '../services/users';
+import { getStudentUsers, getStudentsForFaculty, toggleUserStatus, sendUserPasswordReset } from '../services/users';
 import { CreateStudentModal } from './CreateStudentModal';
 import { useAuth } from '../auth/AuthContext';
 
@@ -49,6 +49,20 @@ export function StudentManagementView() {
       setTimeout(() => setNotice(''), 3000);
     } catch (err: any) {
       setError(err?.message || 'Failed to update student status.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSendPasswordLink = async (user: UserProfile) => {
+    try {
+      setActionLoading(`pass_${user.uid}`);
+      setError('');
+      const res = await sendUserPasswordReset(user.email, user.usn || user.role);
+      setNotice(res.message);
+      setTimeout(() => setNotice(''), 7000);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to send password setup email.');
     } finally {
       setActionLoading(null);
     }
@@ -191,19 +205,37 @@ export function StudentManagementView() {
                     </span>
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    <button
-                      className={`btn btn-sm ${s.active ? 'btn-danger' : 'btn-secondary'}`}
-                      onClick={() => handleToggleStatus(s)}
-                      disabled={actionLoading === s.uid}
-                    >
-                      {actionLoading === s.uid ? (
-                        <Loader2 size={13} className="spinner" />
-                      ) : s.active ? (
-                        'Deactivate'
-                      ) : (
-                        'Activate'
-                      )}
-                    </button>
+                    <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleSendPasswordLink(s)}
+                        disabled={actionLoading === `pass_${s.uid}`}
+                        title="Send password setup link or activate Auth credentials"
+                        style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        {actionLoading === `pass_${s.uid}` ? (
+                          <Loader2 size={12} className="spinner" />
+                        ) : (
+                          <>
+                            <KeyRound size={12} /> Password Link
+                          </>
+                        )}
+                      </button>
+                      <button
+                        className={`btn btn-sm ${s.active ? 'btn-danger' : 'btn-secondary'}`}
+                        onClick={() => handleToggleStatus(s)}
+                        disabled={actionLoading === s.uid}
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                      >
+                        {actionLoading === s.uid ? (
+                          <Loader2 size={13} className="spinner" />
+                        ) : s.active ? (
+                          'Deactivate'
+                        ) : (
+                          'Activate'
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

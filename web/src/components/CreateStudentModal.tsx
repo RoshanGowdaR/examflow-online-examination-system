@@ -27,9 +27,11 @@ export function CreateStudentModal({ isOpen, onClose, onCreated }: CreateStudent
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [initialPassword, setInitialPassword] = useState('Student@123');
   const [error, setError] = useState('');
-  const [successInfo, setSuccessInfo] = useState<{ message: string; resetLink?: string } | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{ message: string; resetLink?: string; temporaryPassword?: string } | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedPass, setCopiedPass] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -82,11 +84,13 @@ export function CreateStudentModal({ isOpen, onClose, onCreated }: CreateStudent
         semester: semester.trim(),
         courseIds,
         active,
+        initialPassword: initialPassword.trim() || undefined,
       });
 
       setSuccessInfo({
         message: res.message || 'Student account created successfully.',
         resetLink: res.resetLink,
+        temporaryPassword: res.temporaryPassword || initialPassword,
       });
       onCreated();
     } catch (err: any) {
@@ -101,6 +105,14 @@ export function CreateStudentModal({ isOpen, onClose, onCreated }: CreateStudent
       navigator.clipboard.writeText(successInfo.resetLink);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
+    }
+  };
+
+  const handleCopyPass = () => {
+    if (successInfo?.temporaryPassword) {
+      navigator.clipboard.writeText(successInfo.temporaryPassword);
+      setCopiedPass(true);
+      setTimeout(() => setCopiedPass(false), 2500);
     }
   };
 
@@ -140,8 +152,33 @@ export function CreateStudentModal({ isOpen, onClose, onCreated }: CreateStudent
             </div>
             <h3 style={{ fontFamily: 'Manrope, sans-serif', margin: '0 0 8px' }}>Student Enrolled Successfully!</h3>
             <p className="muted" style={{ margin: '0 auto 20px', maxWidth: '420px' }}>
-              {successInfo.message} The student (<strong>{email}</strong>) can now complete their password setup.
+              {successInfo.message}
             </p>
+
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', marginBottom: '20px', textAlign: 'left' }}>
+              <div style={{ marginBottom: '12px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#475467', display: 'block', marginBottom: '4px' }}>
+                  Student Sign-In Credentials:
+                </span>
+                <div style={{ fontSize: '13px', color: '#1e293b', marginBottom: '4px' }}>
+                  <strong>Email:</strong> <code>{email}</code>
+                </div>
+                {successInfo.temporaryPassword && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                    <div style={{ fontSize: '13px', color: '#1e293b' }}>
+                      <strong>Temporary Password:</strong> <code style={{ background: '#eff6ff', color: '#1d4ed8', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>{successInfo.temporaryPassword}</code>
+                    </div>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={handleCopyPass} style={{ padding: '2px 8px', fontSize: '11px' }}>
+                      {copiedPass ? <Check size={12} color="#059669" /> : <Copy size={12} />} {copiedPass ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ fontSize: '11px', color: '#047857', background: '#ecfdf5', padding: '8px 12px', borderRadius: '6px' }}>
+                ✓ The student can sign in directly at <code>/login</code> with this password, or use the password setup email link sent to their inbox.
+              </div>
+            </div>
 
             {successInfo.resetLink && (
               <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px', marginBottom: '20px', textAlign: 'left' }}>
@@ -274,6 +311,21 @@ export function CreateStudentModal({ isOpen, onClose, onCreated }: CreateStudent
                     <option value="inactive">Inactive (Disabled)</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Initial Temporary Password */}
+              <div className="form-group" style={{ marginTop: '8px' }}>
+                <label>Initial Temporary Password (Optional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Student@123"
+                  value={initialPassword}
+                  onChange={(e) => setInitialPassword(e.target.value)}
+                />
+                <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                  The student can immediately sign in at <code>/login</code> with this password, or use the setup email link.
+                </span>
               </div>
 
               {/* Course Assignment */}

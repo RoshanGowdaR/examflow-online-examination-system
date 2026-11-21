@@ -93,6 +93,7 @@ export interface CreateFacultyPayload {
   assignedCourses: string[];
   contactNumber?: string;
   active: boolean;
+  initialPassword?: string;
 }
 
 export interface CreateStudentPayload {
@@ -104,6 +105,7 @@ export interface CreateStudentPayload {
   semester: string;
   courseIds: string[];
   active: boolean;
+  initialPassword?: string;
 }
 
 export interface AiGenerateExamPayload {

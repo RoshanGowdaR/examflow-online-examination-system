@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, Search, RefreshCw, Loader2, AlertCircle } from 'lucide-react';
+import { Users, Plus, Search, RefreshCw, Loader2, AlertCircle, KeyRound } from 'lucide-react';
 import type { UserProfile } from '../types';
-import { getFacultyUsers, toggleUserStatus } from '../services/users';
+import { getFacultyUsers, toggleUserStatus, sendUserPasswordReset } from '../services/users';
 import { CreateFacultyModal } from './CreateFacultyModal';
 
 export function FacultyManagementView() {
@@ -40,6 +40,20 @@ export function FacultyManagementView() {
       setTimeout(() => setNotice(''), 3000);
     } catch (err: any) {
       setError(err?.message || 'Failed to update faculty status.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSendPasswordLink = async (user: UserProfile) => {
+    try {
+      setActionLoading(`pass_${user.uid}`);
+      setError('');
+      const res = await sendUserPasswordReset(user.email, user.role);
+      setNotice(res.message);
+      setTimeout(() => setNotice(''), 7000);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to send password setup email.');
     } finally {
       setActionLoading(null);
     }
@@ -169,19 +183,37 @@ export function FacultyManagementView() {
                     </span>
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    <button
-                      className={`btn btn-sm ${f.active ? 'btn-danger' : 'btn-secondary'}`}
-                      onClick={() => handleToggleStatus(f)}
-                      disabled={actionLoading === f.uid}
-                    >
-                      {actionLoading === f.uid ? (
-                        <Loader2 size={13} className="spinner" />
-                      ) : f.active ? (
-                        'Deactivate'
-                      ) : (
-                        'Activate'
-                      )}
-                    </button>
+                    <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleSendPasswordLink(f)}
+                        disabled={actionLoading === `pass_${f.uid}`}
+                        title="Send password setup link or activate Auth credentials"
+                        style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        {actionLoading === `pass_${f.uid}` ? (
+                          <Loader2 size={12} className="spinner" />
+                        ) : (
+                          <>
+                            <KeyRound size={12} /> Password Link
+                          </>
+                        )}
+                      </button>
+                      <button
+                        className={`btn btn-sm ${f.active ? 'btn-danger' : 'btn-secondary'}`}
+                        onClick={() => handleToggleStatus(f)}
+                        disabled={actionLoading === f.uid}
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                      >
+                        {actionLoading === f.uid ? (
+                          <Loader2 size={13} className="spinner" />
+                        ) : f.active ? (
+                          'Deactivate'
+                        ) : (
+                          'Activate'
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
